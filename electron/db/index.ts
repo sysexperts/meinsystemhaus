@@ -1,4 +1,4 @@
-import { DatabaseSync } from "node:sqlite";
+﻿import { DatabaseSync } from "node:sqlite";
 import {
   randomUUID,
   randomBytes,
@@ -170,7 +170,7 @@ function seedIfEmpty() {
   if (campaignCount === 0) {
     const demo: CampaignInput[] = [
       { name: "Website Relaunch & SEO", channel: "website", status: "aktiv", budget: 4000, startDate: "", endDate: "", goal: "Mehr Inbound-Leads", notes: "" },
-      { name: "IT-Messe Frühjahr", channel: "messe", status: "abgeschlossen", budget: 6500, startDate: "", endDate: "", goal: "Neukundenkontakte", notes: "" },
+      { name: "IT-Messe Fr├╝hjahr", channel: "messe", status: "abgeschlossen", budget: 6500, startDate: "", endDate: "", goal: "Neukundenkontakte", notes: "" },
       { name: "LinkedIn Outreach", channel: "linkedin", status: "aktiv", budget: 1500, startDate: "", endDate: "", goal: "Entscheider ansprechen", notes: "" },
     ];
     const created = demo.map((c) => createCampaign(c));
@@ -283,15 +283,15 @@ export function getCustomer(id: string): Customer {
     .get(id) as unknown as Customer | undefined;
   if (!customer) throw new Error(`Kunde ${id} nicht gefunden`);
   return customer;
-}taxNumber, vatId, bankName, bankIban, bankBi, paymentTems, crditLimit, cre
-, ?, ?, ?, ?, ?, ?, ?
+}
+
 export function createCustomer(input: CustomerInput): Customer {
   const id = randomUUID();
   const ts = now();
   db.prepare(
     `INSERT INTO customers
-      (id, name, contact, email, phone, street, zip, city, notes, status, industry, website, customerSince, tags, ltv, healthScore, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, name, contact, email, phone, street, zip, city, notes, status, industry, website, customerSince, tags, ltv, healthScore, taxNumber, vatId, bankName, bankIban, bankBic, paymentTerms, creditLimit, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.name,
@@ -301,14 +301,7 @@ export function createCustomer(input: CustomerInput): Customer {
     input.street ?? "",
     input.zip ?? "",
     input.city ?? "",
-    input.notes ?? "",0,
-    input.taxNumber ?? "",
-    input.vatId ?? "",
-    input.bankName ?? "",
-    input.bankIban ?? "",
-    input.bankBic ?? "",
-    input.paymentTerms ?? "",
-    input.creditLimit ?? 
+    input.notes ?? "",
     input.status ?? "interessent",
     input.industry ?? "sonstige",
     input.website ?? "",
@@ -316,11 +309,16 @@ export function createCustomer(input: CustomerInput): Customer {
     input.tags ?? "",
     input.ltv ?? 0,
     input.healthScore ?? 50,
+    input.taxNumber ?? "",
+    input.vatId ?? "",
+    input.bankName ?? "",
+    input.bankIban ?? "",
+    input.bankBic ?? "",
+    input.paymentTerms ?? "",
+    input.creditLimit ?? 0,
     ts,
     ts,
-  );taxNmber = ?,
-      vatId = ?, bankName = ?, bankIban = ?, bankBic = ?, aymentTerms = ?,
-      creitLimit = ?, upd
+  );
   return getCustomer(id);
 }
 
@@ -334,17 +332,12 @@ export function updateCustomer(
     `UPDATE customers SET
       name = ?, contact = ?, email = ?, phone = ?, street = ?,
       zip = ?, city = ?, notes = ?, status = ?, industry = ?, website = ?,
-      customerSince = ?, tags = ?, ltv = ?, healthScore = ?, updatedAt = ?
+      customerSince = ?, tags = ?, ltv = ?, healthScore = ?, taxNumber = ?,
+      vatId = ?, bankName = ?, bankIban = ?, bankBic = ?, paymentTerms = ?,
+      creditLimit = ?, updatedAt = ?
      WHERE id = ?`,
   ).run(
-    merged.name,0,
-    merged.taxNumber ?? "",
-    merged.vatId ?? "",
-    merged.bankName ?? "",
-    merged.bankIban ?? "",
-    merged.bankBic ?? "",
-    merged.paymentTerms ?? "",
-    merged.creditLimit ?? 
+    merged.name,
     merged.contact,
     merged.email,
     merged.phone,
@@ -359,6 +352,13 @@ export function updateCustomer(
     merged.tags ?? "",
     merged.ltv ?? 0,
     merged.healthScore ?? 50,
+    merged.taxNumber ?? "",
+    merged.vatId ?? "",
+    merged.bankName ?? "",
+    merged.bankIban ?? "",
+    merged.bankBic ?? "",
+    merged.paymentTerms ?? "",
+    merged.creditLimit ?? 0,
     now(),
     id,
   );
@@ -444,7 +444,7 @@ export function createUser(input: NewUserInput): User {
 
 export function deleteUser(id: string): void {
   if (countUsers() <= 1) {
-    throw new Error("Der letzte Benutzer kann nicht gelöscht werden");
+    throw new Error("Der letzte Benutzer kann nicht gel├Âscht werden");
   }
   db.prepare("DELETE FROM users WHERE id = ?").run(id);
 }
