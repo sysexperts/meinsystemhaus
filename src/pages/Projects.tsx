@@ -154,16 +154,22 @@ export function Projects() {
       </div>
 
       <Modal
-        isOpen={isModalOpen}
+        open={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
           resetForm();
         }}
         title={editingProject ? "Projekt bearbeiten" : "Neues Projekt"}
-        onConfirm={editingProject ? handleUpdate : handleCreate}
-        confirmLabel={editingProject ? "Speichern" : "Erstellen"}
       >
-        <Field label="Kunde" required>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (editingProject) handleUpdate();
+            else handleCreate();
+          }}
+          className="space-y-4"
+        >
+        <Field label="Kunde *">
           <select
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             value={formData.customerId}
@@ -177,7 +183,7 @@ export function Projects() {
             ))}
           </select>
         </Field>
-        <Field label="Projektname" required>
+        <Field label="Projektname *">
           <input
             type="text"
             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -238,6 +244,22 @@ export function Projects() {
             onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
           />
         </Field>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              setIsModalOpen(false);
+              resetForm();
+            }}
+          >
+            Abbrechen
+          </Button>
+          <Button type="submit" disabled={!formData.customerId || !formData.name.trim()}>
+            {editingProject ? "Speichern" : "Erstellen"}
+          </Button>
+        </div>
+        </form>
       </Modal>
     </div>
   );
