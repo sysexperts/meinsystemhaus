@@ -99,6 +99,13 @@ function createSchema() {
       tags TEXT NOT NULL DEFAULT '',
       ltv REAL NOT NULL DEFAULT 0,
       healthScore INTEGER NOT NULL DEFAULT 50,
+      taxNumber TEXT NOT NULL DEFAULT '',
+      vatId TEXT NOT NULL DEFAULT '',
+      bankName TEXT NOT NULL DEFAULT '',
+      bankIban TEXT NOT NULL DEFAULT '',
+      bankBic TEXT NOT NULL DEFAULT '',
+      paymentTerms TEXT NOT NULL DEFAULT '',
+      creditLimit REAL NOT NULL DEFAULT 0,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -276,8 +283,8 @@ export function getCustomer(id: string): Customer {
     .get(id) as unknown as Customer | undefined;
   if (!customer) throw new Error(`Kunde ${id} nicht gefunden`);
   return customer;
-}
-
+}taxNumber, vatId, bankName, bankIban, bankBi, paymentTems, crditLimit, cre
+, ?, ?, ?, ?, ?, ?, ?
 export function createCustomer(input: CustomerInput): Customer {
   const id = randomUUID();
   const ts = now();
@@ -294,7 +301,14 @@ export function createCustomer(input: CustomerInput): Customer {
     input.street ?? "",
     input.zip ?? "",
     input.city ?? "",
-    input.notes ?? "",
+    input.notes ?? "",0,
+    input.taxNumber ?? "",
+    input.vatId ?? "",
+    input.bankName ?? "",
+    input.bankIban ?? "",
+    input.bankBic ?? "",
+    input.paymentTerms ?? "",
+    input.creditLimit ?? 
     input.status ?? "interessent",
     input.industry ?? "sonstige",
     input.website ?? "",
@@ -304,7 +318,9 @@ export function createCustomer(input: CustomerInput): Customer {
     input.healthScore ?? 50,
     ts,
     ts,
-  );
+  );taxNmber = ?,
+      vatId = ?, bankName = ?, bankIban = ?, bankBic = ?, aymentTerms = ?,
+      creitLimit = ?, upd
   return getCustomer(id);
 }
 
@@ -321,7 +337,14 @@ export function updateCustomer(
       customerSince = ?, tags = ?, ltv = ?, healthScore = ?, updatedAt = ?
      WHERE id = ?`,
   ).run(
-    merged.name,
+    merged.name,0,
+    merged.taxNumber ?? "",
+    merged.vatId ?? "",
+    merged.bankName ?? "",
+    merged.bankIban ?? "",
+    merged.bankBic ?? "",
+    merged.paymentTerms ?? "",
+    merged.creditLimit ?? 
     merged.contact,
     merged.email,
     merged.phone,

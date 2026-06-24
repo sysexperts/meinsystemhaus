@@ -14,6 +14,7 @@ import {
   Globe,
   Tag,
   HeartPulse,
+  Edit,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -54,6 +55,13 @@ const emptyForm: CustomerInput = {
   tags: "",
   ltv: 0,
   healthScore: 50,
+  taxNumber: "",
+  vatId: "",
+  bankName: "",
+  bankIban: "",
+  bankBic: "",
+  paymentTerms: "",
+  creditLimit: 0,
 };
 
 export function Customers() {
@@ -65,6 +73,7 @@ export function Customers() {
   const [modalOpen, setModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<CustomerInput>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [filterStatus, setFilterStatus] = useState<CustomerStatus | "all">("all");
@@ -93,7 +102,7 @@ export function Customers() {
     const q = query.trim().toLowerCase();
     if (q) {
       result = result.filter((c) =>
-        [c.name, c.contact, c.city, c.email, c.tags].some((v) =>
+        [c.name, c.contact, c.city, c.email, c.tags, c.taxNumber, c.vatId].some((v) =>
           v.toLowerCase().includes(q),
         ),
       );
@@ -197,10 +206,34 @@ export function Customers() {
     await load();
   }
 
+  async function handleUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingId || !form.name.trim()) return;
+    setSaving(true);
+    await window.api.customers.update(editingId, form);
+    setSaving(false);
+    setModalOpen(false);
+    setEditingId(null);
+    setForm(emptyForm);
+    await load();
+  }
+
   async function handleDelete(id: string) {
     if (!window.confirm("Diesen Kunden wirklich löschen?")) return;
     await window.api.customers.remove(id);
     await load();
+  }
+
+  function openCreate() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setModalOpen(true);
+  }
+
+  function openEdit(customer: Customer) {
+    setEditingId(customer.id);
+    setForm(customer);
+    setModalOpen(true);
   }
 
   function openDetail(customer: Customer) {
@@ -252,7 +285,7 @@ export function Customers() {
             <option value="sonstige">Sonstige</option>
           </select>
         </div>
-        <Button size="sm" onClick={() => setModalOpen(true)}>
+        <Button size="sm" onClick={openCreate}>
           <Plus className="h-4 w-4" />
           Kunde anlegen
         </Button>
@@ -335,10 +368,9 @@ export function Customers() {
               {filtered.map((c) => (
                 <tr
                   key={c.id}
-                  className="group border-b border-border last:border-0 transition-colors hover:bg-muted/50 cursor-pointer"
-                  onClick={() => openDetail(c)}
+                  className="group border-b border-border last:border-0 transition-colors hover:bg-muted/50"
                 >
-                  <td className="px-5 py-3">
+                  <td className="px-5 py-3 cursor-pointer" onClick={() => openDetail(c)}>
                     <div>
                       <p className="font-medium text-foreground">{c.name}</p>
                       {c.website && (
@@ -384,16 +416,25 @@ export function Customers() {
                     {formatCurrency(c.ltv)}
                   </td>
                   <td className="px-5 py-3 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(c.id);
-                      }}
-                      className="text-muted-foreground opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
-                      aria-label="Kunde löschen"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openEdit(c)}
+                        className="text-muted-foreground opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
+                        aria-label="Kunde bearbeiten"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(c.id);
+                        }}
+                        className="text-muted-foreground opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
+                        aria-label="Kunde löschen"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -414,10 +455,14 @@ export function Customers() {
 
       <Modal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title="Neuen Kunden anlegen"
+        onClose={() => {
+          setModalOpen(false);
+          setEditingId(null);
+          setForm(emptyForm);
+        }}
+        title={editingId ? "Kunde bearbeiten" : "Neuen Kunden anlegen"}
       >
-        <form onSubmit={handleCreate} className="space-y-4">
+        <form onSubmit={editingId ? handleUpdate : handleCreate} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
           <Field label="Firma *">
             <Input
               value={form.name}
@@ -506,6 +551,62 @@ export function Customers() {
               />
             </Field>
           </div>
+          
+          <div className="border-t border-border pt-4">
+            <h4 className="text-sm font-semibold text-foreground mb-3">Rechnungsdaten</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Steuernummer">
+                <Input
+                  value={form.taxNumber}
+                  onChange={(e) => setForm({ ...form, taxNumber: e.target.value })}
+                  placeholder="DE123456789"
+                />
+              </Field>
+              <Field label="USt-IdNr. (VAT ID)">
+                <Input
+                  value={form.vatId}
+                  onChange={(e) => setForm({ ...form, vatId: e.target.value })}
+                  placeholder="DE123456789"
+                />
+              </Field>
+            </div>
+          </div>
+
+          <div className="border-t border-border pt-4">
+            <h4 className="text-sm font-semibold text-foreground mb-3">Bankverbindung</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Bankname">
+                <Input
+                  value={form.bankName}
+                  onChange={(e) => setForm({ ...form, bankName: e.target.value })}
+                />
+              </Field>
+              <Field label="IBAN">
+                <Input
+                  value={form.bankIban}
+                  onChange={(e) => setForm({ ...form, bankIban: e.target.value })}
+                  placeholder="DE89 3704 0044 0532 0130 00"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <Field label="BIC">
+                <Input
+                  value={form.bankBic}
+                  onChange={(e) => setForm({ ...form, bankBic: e.target.value })}
+                  placeholder="COBADEFFXXX"
+                />
+              </Field>
+              <Field label="Zahlungsbedingungen">
+                <Input
+                  value={form.paymentTerms}
+                  onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}
+                  placeholder="z.B. 14 Tage netto"
+                />
+              </Field>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <Field label="Tags (kommagetrennt)">
               <Input
@@ -524,6 +625,24 @@ export function Customers() {
               />
             </Field>
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="LTV (Lifetime Value)">
+              <Input
+                type="number"
+                min="0"
+                value={form.ltv}
+                onChange={(e) => setForm({ ...form, ltv: parseFloat(e.target.value) || 0 })}
+              />
+            </Field>
+            <Field label="Kreditlimit">
+              <Input
+                type="number"
+                min="0"
+                value={form.creditLimit}
+                onChange={(e) => setForm({ ...form, creditLimit: parseFloat(e.target.value) || 0 })}
+              />
+            </Field>
+          </div>
           <Field label="Notizen">
             <textarea
               value={form.notes}
@@ -537,12 +656,16 @@ export function Customers() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setModalOpen(false)}
+              onClick={() => {
+                setModalOpen(false);
+                setEditingId(null);
+                setForm(emptyForm);
+              }}
             >
               Abbrechen
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? "Speichern…" : "Kunde anlegen"}
+              {saving ? "Speichern…" : editingId ? "Kunde aktualisieren" : "Kunde anlegen"}
             </Button>
           </div>
         </form>
@@ -554,7 +677,7 @@ export function Customers() {
         title="Kunden-Details"
       >
         {selectedCustomer && (
-          <div className="space-y-6">
+          <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
             <div className="grid grid-cols-2 gap-6">
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold text-foreground">Kontaktdaten</h3>
@@ -611,6 +734,10 @@ export function Customers() {
                     <span className="text-sm text-muted-foreground">LTV</span>
                     <span className="text-sm font-medium text-foreground">{formatCurrency(selectedCustomer.ltv)}</span>
                   </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Kreditlimit</span>
+                    <span className="text-sm font-medium text-foreground">{formatCurrency(selectedCustomer.creditLimit)}</span>
+                  </div>
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Health Score</span>
@@ -628,6 +755,58 @@ export function Customers() {
                 </div>
               </div>
             </div>
+
+            {(selectedCustomer.taxNumber || selectedCustomer.vatId) && (
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Rechnungsdaten</h3>
+                <div className="space-y-2 text-sm">
+                  {selectedCustomer.taxNumber && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Steuernummer</span>
+                      <span className="text-foreground font-mono">{selectedCustomer.taxNumber}</span>
+                    </div>
+                  )}
+                  {selectedCustomer.vatId && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">USt-IdNr.</span>
+                      <span className="text-foreground font-mono">{selectedCustomer.vatId}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {(selectedCustomer.bankName || selectedCustomer.bankIban) && (
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-2">Bankverbindung</h3>
+                <div className="space-y-2 text-sm">
+                  {selectedCustomer.bankName && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Bank</span>
+                      <span className="text-foreground">{selectedCustomer.bankName}</span>
+                    </div>
+                  )}
+                  {selectedCustomer.bankIban && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">IBAN</span>
+                      <span className="text-foreground font-mono">{selectedCustomer.bankIban}</span>
+                    </div>
+                  )}
+                  {selectedCustomer.bankBic && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">BIC</span>
+                      <span className="text-foreground font-mono">{selectedCustomer.bankBic}</span>
+                    </div>
+                  )}
+                  {selectedCustomer.paymentTerms && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Zahlungsbedingungen</span>
+                      <span className="text-foreground">{selectedCustomer.paymentTerms}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {selectedCustomer.tags && (
               <div>

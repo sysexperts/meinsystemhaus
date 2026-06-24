@@ -292,6 +292,13 @@ export function Leads() {
       tags: "",
       ltv: lead.value,
       healthScore: 70,
+      taxNumber: "",
+      vatId: "",
+      bankName: "",
+      bankIban: "",
+      bankBic: "",
+      paymentTerms: "",
+      creditLimit: 0,
     };
     await window.api.customers.create(customer);
     if (lead.stage !== "gewonnen") {

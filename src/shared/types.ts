@@ -90,6 +90,13 @@ export interface Customer {
   tags: string;
   ltv: number;
   healthScore: number;
+  taxNumber: string;
+  vatId: string;
+  bankName: string;
+  bankIban: string;
+  bankBic: string;
+  paymentTerms: string;
+  creditLimit: number;
   createdAt: string;
   updatedAt: string;
 }
