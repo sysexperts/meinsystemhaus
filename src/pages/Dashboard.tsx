@@ -5,7 +5,11 @@ import {
   TrendingUp,
   ArrowUpRight,
   AlertTriangle,
-  Megaphone,
+  Users,
+  FolderKanban,
+  HeartPulse,
+  Clock,
+  DollarSign,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -43,8 +47,9 @@ export function Dashboard() {
   const wonValue = leads
     .filter((l) => l.stage === "gewonnen")
     .reduce((sum, l) => sum + l.value, 0);
-
-  const activeCampaigns = campaigns.filter((c) => c.status === "aktiv").length;
+  const conversionRate = leads.length > 0 
+    ? (leads.filter((l) => l.stage === "gewonnen").length / leads.length) * 100 
+    : 0;
 
   const campaignMetrics = campaigns.map((c) => {
     const campaignLeads = leads.filter((l) => l.campaignId === c.id);
@@ -53,8 +58,18 @@ export function Dashboard() {
     const roi = c.budget > 0 ? ((wonValue - c.budget) / c.budget) * 100 : 0;
     return { ...c, leadCount: campaignLeads.length, wonValue, roi };
   });
-  const avgRoi = campaignMetrics.length > 0
-    ? campaignMetrics.reduce((sum, m) => sum + m.roi, 0) / campaignMetrics.length
+
+  const activeCustomers = customers.filter((c) => c.status === "aktiv").length;
+  const totalLtv = customers.reduce((sum, c) => sum + c.ltv, 0);
+  const avgHealthScore = customers.length > 0 
+    ? customers.reduce((sum, c) => sum + c.healthScore, 0) / customers.length 
+    : 0;
+  const atRiskCustomers = customers.filter((c) => c.healthScore < 40).length;
+
+  const inProgressProjects = projects.filter((p) => p.status === "in_arbeit").length;
+  const overBudgetProjects = projects.filter((p) => p.actualCost > p.budget).length;
+  const avgProjectProgress = projects.length > 0 
+    ? projects.reduce((sum, p) => sum + p.progress, 0) / projects.length 
     : 0;
 
   const today = new Date().toISOString().split('T')[0];
@@ -83,17 +98,41 @@ export function Dashboard() {
       icon: Euro,
     },
     {
-      label: "Aktive Kampagnen",
-      value: String(activeCampaigns),
-      delta: "+1",
-      icon: Megaphone,
+      label: "Konversionsrate",
+      value: `${conversionRate.toFixed(1)}%`,
+      delta: "+2.1%",
+      icon: TrendingUp,
     },
     {
-      label: "Ø ROI",
-      value: `${avgRoi.toFixed(1)}%`,
-      delta: avgRoi >= 0 ? "+2.5%" : "-1.2%",
-      icon: TrendingUp,
-      tone: avgRoi >= 0 ? ("success" as const) : ("danger" as const),
+      label: "Aktive Kunden",
+      value: String(activeCustomers),
+      delta: "+3",
+      icon: Users,
+    },
+    {
+      label: "Gesamt LTV",
+      value: formatCurrency(totalLtv),
+      delta: "+15%",
+      icon: DollarSign,
+    },
+    {
+      label: "Ø Health Score",
+      value: `${avgHealthScore.toFixed(0)}`,
+      delta: avgHealthScore >= 70 ? "+5" : "-2",
+      tone: avgHealthScore >= 70 ? ("success" as const) : avgHealthScore >= 40 ? ("warning" as const) : ("danger" as const),
+      icon: HeartPulse,
+    },
+    {
+      label: "Projekte In Arbeit",
+      value: String(inProgressProjects),
+      delta: "+2",
+      icon: FolderKanban,
+    },
+    {
+      label: "Ø Projekt-Fortschritt",
+      value: `${avgProjectProgress.toFixed(0)}%`,
+      delta: "+8%",
+      icon: Clock,
     },
   ];
 
@@ -169,6 +208,16 @@ export function Dashboard() {
               <span className="text-sm text-muted-foreground">Kampagnen</span>
               <span className="font-semibold">{campaigns.length}</span>
             </div>
+            <div className="border-t border-border pt-4 mt-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Risiko Kunden</span>
+                <span className="font-semibold text-destructive">{atRiskCustomers}</span>
+              </div>
+              <div className="flex items-center justify-between mt-2">
+                <span className="text-sm text-muted-foreground">Über Budget Projekte</span>
+                <span className="font-semibold text-destructive">{overBudgetProjects}</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -188,9 +237,14 @@ export function Dashboard() {
                       {getCustomerName(p.customerId)}
                     </p>
                   </div>
-                  <Badge tone={p.status === "in_arbeit" ? "primary" : p.status === "abgeschlossen" ? "success" : "muted"} className="text-xs">
-                    {p.status === "in_arbeit" ? "In Arbeit" : p.status === "abgeschlossen" ? "Abgeschlossen" : p.status}
-                  </Badge>
+                  <div className="text-right">
+                    <Badge tone={p.status === "in_arbeit" ? "primary" : p.status === "abgeschlossen" ? "success" : "muted"} className="text-xs">
+                      {p.status === "in_arbeit" ? "In Arbeit" : p.status === "abgeschlossen" ? "Abgeschlossen" : p.status}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {p.progress}% · {formatCurrency(p.actualCost)}/{formatCurrency(p.budget)}
+                    </p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -211,7 +265,7 @@ export function Dashboard() {
                   <div>
                     <p className="font-medium text-foreground">{c.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {c.leadCount} Leads • {formatCurrency(c.wonValue)} gewonnen
+                      {c.leadCount} Leads · {formatCurrency(c.wonValue)} gewonnen
                     </p>
                   </div>
                   <Badge tone={c.roi >= 0 ? "success" : "danger"} className="text-xs">
