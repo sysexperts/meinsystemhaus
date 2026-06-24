@@ -146,6 +146,14 @@ export function Tickets() {
   }
 
   async function handleCreate() {
+    if (!formData.customerId) {
+      alert("Bitte wählen Sie einen Kunden aus.");
+      return;
+    }
+    if (!formData.subject) {
+      alert("Bitte geben Sie einen Betreff ein.");
+      return;
+    }
     await window.api.tickets.create(formData);
     setCreateModalOpen(false);
     setFormData(emptyForm);
