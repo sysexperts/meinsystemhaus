@@ -286,6 +286,12 @@ export function Leads() {
         ? `Aus Lead konvertiert.\n${lead.notes}`
         : "Aus Lead konvertiert.",
       status: "aktiv",
+      industry: "sonstige",
+      website: "",
+      customerSince: new Date().toISOString().split('T')[0],
+      tags: "",
+      ltv: lead.value,
+      healthScore: 70,
     };
     await window.api.customers.create(customer);
     if (lead.stage !== "gewonnen") {

@@ -93,6 +93,12 @@ function createSchema() {
       city TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'interessent',
+      industry TEXT NOT NULL DEFAULT 'sonstige',
+      website TEXT NOT NULL DEFAULT '',
+      customerSince TEXT NOT NULL DEFAULT '',
+      tags TEXT NOT NULL DEFAULT '',
+      ltv REAL NOT NULL DEFAULT 0,
+      healthScore INTEGER NOT NULL DEFAULT 50,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -277,8 +283,8 @@ export function createCustomer(input: CustomerInput): Customer {
   const ts = now();
   db.prepare(
     `INSERT INTO customers
-      (id, name, contact, email, phone, street, zip, city, notes, status, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, name, contact, email, phone, street, zip, city, notes, status, industry, website, customerSince, tags, ltv, healthScore, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.name,
@@ -290,6 +296,12 @@ export function createCustomer(input: CustomerInput): Customer {
     input.city ?? "",
     input.notes ?? "",
     input.status ?? "interessent",
+    input.industry ?? "sonstige",
+    input.website ?? "",
+    input.customerSince ?? ts.split('T')[0],
+    input.tags ?? "",
+    input.ltv ?? 0,
+    input.healthScore ?? 50,
     ts,
     ts,
   );
@@ -305,7 +317,8 @@ export function updateCustomer(
   db.prepare(
     `UPDATE customers SET
       name = ?, contact = ?, email = ?, phone = ?, street = ?,
-      zip = ?, city = ?, notes = ?, status = ?, updatedAt = ?
+      zip = ?, city = ?, notes = ?, status = ?, industry = ?, website = ?,
+      customerSince = ?, tags = ?, ltv = ?, healthScore = ?, updatedAt = ?
      WHERE id = ?`,
   ).run(
     merged.name,
@@ -317,6 +330,12 @@ export function updateCustomer(
     merged.city,
     merged.notes,
     merged.status,
+    merged.industry ?? "sonstige",
+    merged.website ?? "",
+    merged.customerSince ?? "",
+    merged.tags ?? "",
+    merged.ltv ?? 0,
+    merged.healthScore ?? 50,
     now(),
     id,
   );

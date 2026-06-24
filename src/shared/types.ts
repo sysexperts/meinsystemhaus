@@ -71,6 +71,7 @@ export interface Campaign {
 export type CampaignInput = Omit<Campaign, "id" | "createdAt" | "updatedAt">;
 
 export type CustomerStatus = "aktiv" | "interessent" | "inaktiv";
+export type CustomerIndustry = "it" | "handel" | "dienstleistung" | "produktion" | "sonstige";
 
 export interface Customer {
   id: string;
@@ -83,6 +84,12 @@ export interface Customer {
   city: string;
   notes: string;
   status: CustomerStatus;
+  industry: CustomerIndustry;
+  website: string;
+  customerSince: string;
+  tags: string;
+  ltv: number;
+  healthScore: number;
   createdAt: string;
   updatedAt: string;
 }
