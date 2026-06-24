@@ -125,7 +125,11 @@ function createSchema() {
       name TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'planung',
+      priority TEXT NOT NULL DEFAULT 'mittel',
       budget REAL NOT NULL DEFAULT 0,
+      actualCost REAL NOT NULL DEFAULT 0,
+      progress INTEGER NOT NULL DEFAULT 0,
+      assignee TEXT NOT NULL DEFAULT '',
       startDate TEXT NOT NULL DEFAULT '',
       endDate TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
@@ -490,15 +494,19 @@ export function createProject(input: ProjectInput): Project {
   const ts = now();
   db.prepare(
     `INSERT INTO projects
-      (id, customerId, name, description, status, budget, startDate, endDate, notes, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, customerId, name, description, status, priority, budget, actualCost, progress, assignee, startDate, endDate, notes, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.customerId,
     input.name,
     input.description ?? "",
     input.status ?? "planung",
+    input.priority ?? "mittel",
     input.budget ?? 0,
+    input.actualCost ?? 0,
+    input.progress ?? 0,
+    input.assignee ?? "",
     input.startDate ?? "",
     input.endDate ?? "",
     input.notes ?? "",
@@ -517,14 +525,19 @@ export function updateProject(
   db.prepare(
     `UPDATE projects SET
       customerId = ?, name = ?, description = ?, status = ?,
-      budget = ?, startDate = ?, endDate = ?, notes = ?, updatedAt = ?
+      priority = ?, budget = ?, actualCost = ?, progress = ?, assignee = ?,
+      startDate = ?, endDate = ?, notes = ?, updatedAt = ?
      WHERE id = ?`,
   ).run(
     merged.customerId,
     merged.name,
     merged.description,
     merged.status,
+    merged.priority ?? "mittel",
     merged.budget,
+    merged.actualCost,
+    merged.progress,
+    merged.assignee ?? "",
     merged.startDate,
     merged.endDate,
     merged.notes,

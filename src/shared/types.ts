@@ -104,6 +104,7 @@ export interface Customer {
 export type CustomerInput = Omit<Customer, "id" | "createdAt" | "updatedAt">;
 
 export type ProjectStatus = "planung" | "in_arbeit" | "wartend" | "abgeschlossen";
+export type ProjectPriority = "hoch" | "mittel" | "niedrig";
 
 export interface Project {
   id: string;
@@ -111,7 +112,11 @@ export interface Project {
   name: string;
   description: string;
   status: ProjectStatus;
+  priority: ProjectPriority;
   budget: number;
+  actualCost: number;
+  progress: number;
+  assignee: string;
   startDate: string;
   endDate: string;
   notes: string;
