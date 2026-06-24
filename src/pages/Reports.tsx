@@ -6,6 +6,8 @@ import {
   Percent,
   Users as UsersIcon,
   Target,
+  Clock,
+  BarChart3,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import type { Lead, LeadStage, LeadSource, LeadRating } from "@/shared/types";
@@ -20,7 +22,6 @@ const STAGE_LABELS: Record<LeadStage, string> = {
   verloren: "Verloren",
 };
 
-// Reihenfolge des Verkaufstrichters (ohne gewonnen/verloren)
 const FUNNEL_STAGES: LeadStage[] = [
   "neu",
   "kontaktiert",
@@ -88,7 +89,6 @@ export function Reports() {
     };
   }, [leads]);
 
-  // Trichter: Anzahl + Wert je Phase
   const funnel = useMemo(() => {
     return FUNNEL_STAGES.map((stage) => {
       const items = leads.filter((l) => l.stage === stage);
@@ -101,25 +101,42 @@ export function Reports() {
     });
   }, [leads]);
 
-  // Quellen-Verteilung
-  const sources = useMemo(() => {
-    const map = new Map<LeadSource, { count: number; value: number }>();
+  const sourcePerformance = useMemo(() => {
+    const map = new Map<LeadSource, { 
+      total: number; 
+      won: number; 
+      lost: number;
+      totalValue: number; 
+      wonValue: number;
+    }>();
+    
     for (const l of leads) {
-      const cur = map.get(l.source) || { count: 0, value: 0 };
-      cur.count += 1;
-      cur.value += l.value;
+      const cur = map.get(l.source) || { total: 0, won: 0, lost: 0, totalValue: 0, wonValue: 0 };
+      cur.total += 1;
+      cur.totalValue += l.value;
+      if (l.stage === "gewonnen") {
+        cur.won += 1;
+        cur.wonValue += l.value;
+      } else if (l.stage === "verloren") {
+        cur.lost += 1;
+      }
       map.set(l.source, cur);
     }
+
     return Array.from(map.entries())
-      .map(([source, v]) => ({
-        source,
-        label: SOURCE_LABELS[source] ?? source,
-        ...v,
-      }))
-      .sort((a, b) => b.count - a.count);
+      .map(([source, v]) => {
+        const decided = v.won + v.lost;
+        const conversion = decided > 0 ? (v.won / decided) * 100 : 0;
+        return {
+          source,
+          label: SOURCE_LABELS[source] ?? source,
+          ...v,
+          conversion,
+        };
+      })
+      .sort((a, b) => b.wonValue - a.wonValue);
   }, [leads]);
 
-  // Bewertungs-Verteilung (Donut)
   const ratings = useMemo(() => {
     const order: LeadRating[] = ["hot", "warm", "cold"];
     return order.map((rating) => ({
@@ -129,7 +146,6 @@ export function Reports() {
     }));
   }, [leads]);
 
-  // Inhaber-Performance: gewonnener Wert je Inhaber
   const ownersPerf = useMemo(() => {
     const map = new Map<
       string,
@@ -150,16 +166,17 @@ export function Reports() {
       .sort((a, b) => b.wonValue - a.wonValue);
   }, [leads]);
 
-  // Neue Leads je Monat (letzte 6 Monate)
   const monthly = useMemo(() => {
     const now = new Date();
-    const buckets: { key: string; label: string; count: number }[] = [];
+    const buckets: { key: string; label: string; count: number; wonValue: number; conversionRate: number }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       buckets.push({
         key: `${d.getFullYear()}-${d.getMonth()}`,
         label: MONTH_LABELS[d.getMonth()],
         count: 0,
+        wonValue: 0,
+        conversionRate: 0,
       });
     }
     const idx = new Map(buckets.map((b, i) => [b.key, i]));
@@ -168,9 +185,111 @@ export function Reports() {
       const d = new Date(l.createdAt);
       const key = `${d.getFullYear()}-${d.getMonth()}`;
       const i = idx.get(key);
-      if (i !== undefined) buckets[i].count += 1;
+      if (i !== undefined) {
+        buckets[i].count += 1;
+        if (l.stage === "gewonnen") {
+          buckets[i].wonValue += l.value;
+        }
+      }
     }
+    buckets.forEach(b => {
+      const monthLeads = leads.filter(l => {
+        if (!l.createdAt) return false;
+        const d = new Date(l.createdAt);
+        return `${d.getFullYear()}-${d.getMonth()}` === b.key;
+      });
+      const decided = monthLeads.filter(l => l.stage === "gewonnen" || l.stage === "verloren").length;
+      const won = monthLeads.filter(l => l.stage === "gewonnen").length;
+      b.conversionRate = decided > 0 ? (won / decided) * 100 : 0;
+    });
     return buckets;
+  }, [leads]);
+
+  const leadVelocity = useMemo(() => {
+    const velocityMap = new Map<LeadStage, { totalDays: number; count: number }>();
+    FUNNEL_STAGES.forEach(stage => {
+      velocityMap.set(stage, { totalDays: 0, count: 0 });
+    });
+
+    for (const l of leads) {
+      if (!l.createdAt) continue;
+      const created = new Date(l.createdAt);
+      const now = new Date();
+      const daysInStage = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+      const current = velocityMap.get(l.stage);
+      if (current && l.stage !== "gewonnen" && l.stage !== "verloren") {
+        current.totalDays += daysInStage;
+        current.count += 1;
+      }
+    }
+
+    return FUNNEL_STAGES.map(stage => {
+      const v = velocityMap.get(stage);
+      const avgDays = v && v.count > 0 ? Math.round(v.totalDays / v.count) : 0;
+      return { stage, label: STAGE_LABELS[stage], avgDays };
+    });
+  }, [leads]);
+
+  const stageConversion = useMemo(() => {
+    const conversionRates: { stage: LeadStage; label: string; rate: number; count: number }[] = [];
+    
+    for (let i = 0; i < FUNNEL_STAGES.length; i++) {
+      const currentStage = FUNNEL_STAGES[i];
+      const nextStage = FUNNEL_STAGES[i + 1] || "gewonnen";
+      
+      const currentCount = leads.filter(l => l.stage === currentStage).length;
+      const nextCount = leads.filter(l => l.stage === nextStage || (nextStage === "gewonnen" && l.stage === "gewonnen")).length;
+      
+      const rate = currentCount > 0 ? (nextCount / (currentCount + nextCount)) * 100 : 0;
+      
+      conversionRates.push({
+        stage: currentStage,
+        label: STAGE_LABELS[currentStage],
+        rate,
+        count: currentCount,
+      });
+    }
+    
+    return conversionRates;
+  }, [leads]);
+
+  const dealVelocity = useMemo(() => {
+    const wonLeads = leads.filter(l => l.stage === "gewonnen" && l.createdAt);
+    if (wonLeads.length === 0) return 0;
+    
+    const totalDays = wonLeads.reduce((sum, l) => {
+      const created = new Date(l.createdAt!);
+      const now = new Date();
+      const days = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+      return sum + days;
+    }, 0);
+    
+    return Math.round(totalDays / wonLeads.length);
+  }, [leads]);
+
+  const pipelineAging = useMemo(() => {
+    const agingMap = new Map<LeadStage, { leads: Array<{ id: string; company: string; days: number }> }>();
+    
+    FUNNEL_STAGES.forEach(stage => {
+      agingMap.set(stage, { leads: [] });
+    });
+
+    const now = new Date();
+    for (const l of leads) {
+      if (!l.createdAt || l.stage === "gewonnen" || l.stage === "verloren") continue;
+      const created = new Date(l.createdAt);
+      const days = Math.floor((now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+      const current = agingMap.get(l.stage);
+      if (current) {
+        current.leads.push({ id: l.id, company: l.company, days });
+      }
+    }
+
+    return FUNNEL_STAGES.map(stage => {
+      const a = agingMap.get(stage);
+      const sorted = a ? [...a.leads].sort((a, b) => b.days - a.days).slice(0, 5) : [];
+      return { stage, label: STAGE_LABELS[stage], leads: sorted };
+    });
   }, [leads]);
 
   if (loading) {
@@ -189,14 +308,13 @@ export function Reports() {
   }
 
   const maxFunnel = Math.max(...funnel.map((f) => f.count), 1);
-  const maxSource = Math.max(...sources.map((s) => s.count), 1);
+  const maxSource = Math.max(...sourcePerformance.map((s) => s.total), 1);
   const maxOwner = Math.max(...ownersPerf.map((o) => o.wonValue), 1);
   const maxMonth = Math.max(...monthly.map((m) => m.count), 1);
 
   return (
     <div className="space-y-5">
-      {/* KPI-Kacheln */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-8">
         <Kpi icon={Target} label="Leads gesamt" value={String(stats.total)} />
         <Kpi
           icon={Wallet}
@@ -225,10 +343,20 @@ export function Reports() {
           label="Ø Abschluss"
           value={formatCurrency(stats.avgDeal)}
         />
+        <Kpi
+          icon={Clock}
+          label="Deal Velocity"
+          value={`${dealVelocity} Tage`}
+          tone="primary"
+        />
+        <Kpi
+          icon={BarChart3}
+          label="Ø Velocity/Stage"
+          value={`${leadVelocity.reduce((s, v) => s + v.avgDays, 0) / leadVelocity.length || 0} Tage`}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* Verkaufstrichter */}
         <Card>
           <CardContent className="space-y-4 pt-5">
             <h3 className="text-sm font-semibold text-foreground">
@@ -259,7 +387,66 @@ export function Reports() {
           </CardContent>
         </Card>
 
-        {/* Bewertungs-Verteilung (Donut) */}
+        <Card>
+          <CardContent className="space-y-4 pt-5">
+            <h3 className="text-sm font-semibold text-foreground">
+              Konversionsraten pro Stage
+            </h3>
+            <div className="space-y-3">
+              {stageConversion.map((sc) => (
+                <div key={sc.stage}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="text-foreground">{sc.label}</span>
+                    <span className="text-muted-foreground">
+                      {sc.rate.toFixed(1)}% · {sc.count} Leads
+                    </span>
+                  </div>
+                  <div className="h-6 w-full overflow-hidden rounded-md bg-muted">
+                    <div
+                      className="flex h-full items-center justify-end rounded-md bg-success px-2 text-[11px] font-medium text-success-foreground transition-all"
+                      style={{
+                        width: `${Math.max(sc.rate, sc.rate > 0 ? 8 : 0)}%`,
+                      }}
+                    >
+                      {sc.rate > 0 && `${sc.rate.toFixed(0)}%`}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-4 pt-5">
+            <h3 className="text-sm font-semibold text-foreground">
+              Lead Velocity (Ø Tage in Stage)
+            </h3>
+            <div className="space-y-3">
+              {leadVelocity.map((lv) => (
+                <div key={lv.stage}>
+                  <div className="mb-1 flex items-center justify-between text-xs">
+                    <span className="text-foreground">{lv.label}</span>
+                    <span className="text-muted-foreground">
+                      {lv.avgDays} Tage
+                    </span>
+                  </div>
+                  <div className="h-6 w-full overflow-hidden rounded-md bg-muted">
+                    <div
+                      className="flex h-full items-center justify-end rounded-md bg-warning px-2 text-[11px] font-medium text-warning-foreground transition-all"
+                      style={{
+                        width: `${Math.min((lv.avgDays / 60) * 100, 100)}%`,
+                      }}
+                    >
+                      {lv.avgDays > 0 && `${lv.avgDays}d`}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardContent className="space-y-4 pt-5">
             <h3 className="text-sm font-semibold text-foreground">
@@ -291,38 +478,46 @@ export function Reports() {
           </CardContent>
         </Card>
 
-        {/* Quellen-Verteilung */}
         <Card>
           <CardContent className="space-y-4 pt-5">
             <h3 className="text-sm font-semibold text-foreground">
-              Leads nach Quelle
+              Quellen-Performance (ROI)
             </h3>
-            <div className="space-y-2.5">
-              {sources.map((s) => (
-                <div key={s.source} className="flex items-center gap-3">
-                  <span className="w-24 shrink-0 truncate text-xs text-foreground">
-                    {s.label}
-                  </span>
-                  <div className="h-4 flex-1 overflow-hidden rounded bg-muted">
-                    <div
-                      className="h-full rounded bg-primary/80"
-                      style={{ width: `${(s.count / maxSource) * 100}%` }}
-                    />
+            <div className="space-y-3">
+              {sourcePerformance.map((s) => (
+                <div key={s.source} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-foreground font-medium">{s.label}</span>
+                    <span className="text-muted-foreground">
+                      {s.wonValue > 0 ? formatCurrency(s.wonValue) : "-"}
+                    </span>
                   </div>
-                  <span className="w-8 shrink-0 text-right text-xs text-muted-foreground">
-                    {s.count}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 flex-1 overflow-hidden rounded bg-muted">
+                      <div
+                        className="h-full rounded bg-primary/80"
+                        style={{ width: `${(s.total / maxSource) * 100}%` }}
+                      />
+                    </div>
+                    <span className="w-16 shrink-0 text-right text-xs text-muted-foreground">
+                      {s.total} Leads
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Conversion: {s.conversion.toFixed(0)}%</span>
+                    <span>·</span>
+                    <span>Won: {s.won}/{s.total}</span>
+                  </div>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
 
-        {/* Neue Leads je Monat */}
         <Card>
           <CardContent className="space-y-4 pt-5">
             <h3 className="text-sm font-semibold text-foreground">
-              Neue Leads (6 Monate)
+              Leads & Umsatz (6 Monate)
             </h3>
             <div className="flex h-40 items-end justify-between gap-2">
               {monthly.map((m) => (
@@ -331,7 +526,7 @@ export function Reports() {
                   className="flex flex-1 flex-col items-center gap-1.5"
                 >
                   <span className="text-xs font-medium text-foreground">
-                    {m.count > 0 ? m.count : ""}
+                    {m.wonValue > 0 ? formatCurrency(m.wonValue) : (m.count > 0 ? m.count : "")}
                   </span>
                   <div
                     className="w-full rounded-t bg-primary transition-all"
@@ -339,9 +534,47 @@ export function Reports() {
                       height: `${Math.max((m.count / maxMonth) * 100, m.count > 0 ? 6 : 2)}%`,
                     }}
                   />
-                  <span className="text-xs text-muted-foreground">
-                    {m.label}
-                  </span>
+                  <div className="text-xs text-muted-foreground">
+                    <span>{m.label}</span>
+                    {m.conversionRate > 0 && (
+                      <span className="ml-1 text-success">({m.conversionRate.toFixed(0)}%)</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="space-y-4 pt-5">
+            <h3 className="text-sm font-semibold text-foreground">
+              Pipeline Aging (älteste Leads)
+            </h3>
+            <div className="space-y-3">
+              {pipelineAging.map((pa) => (
+                <div key={pa.stage}>
+                  <div className="mb-2 flex items-center justify-between text-xs">
+                    <span className="text-foreground font-medium">{pa.label}</span>
+                    <span className="text-muted-foreground">{pa.leads.length} Leads</span>
+                  </div>
+                  {pa.leads.length > 0 ? (
+                    <div className="space-y-1">
+                      {pa.leads.slice(0, 3).map((l) => (
+                        <div key={l.id} className="flex items-center justify-between text-xs">
+                          <span className="text-foreground truncate">{l.company}</span>
+                          <span className={cn(
+                            "font-medium",
+                            l.days > 30 ? "text-destructive" : l.days > 14 ? "text-warning" : "text-success"
+                          )}>
+                            {l.days} Tage
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Keine Leads</p>
+                  )}
                 </div>
               ))}
             </div>
@@ -349,7 +582,6 @@ export function Reports() {
         </Card>
       </div>
 
-      {/* Inhaber-Performance */}
       <Card>
         <CardContent className="space-y-4 pt-5">
           <h3 className="text-sm font-semibold text-foreground">
@@ -418,7 +650,6 @@ function Kpi({
   );
 }
 
-// Einfaches Donut-Diagramm via SVG (ohne externe Bibliothek).
 function Donut({
   segments,
   total,
