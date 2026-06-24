@@ -126,6 +126,29 @@ export interface Project {
 
 export type ProjectInput = Omit<Project, "id" | "createdAt" | "updatedAt">;
 
+export type TicketStatus = "offen" | "in_bearbeitung" | "wartend" | "geloest" | "geschlossen";
+export type TicketPriority = "hoch" | "mittel" | "niedrig";
+export type TicketType = "bug" | "feature" | "support" | "frage";
+
+export interface Ticket {
+  id: string;
+  customerId: string;
+  projectId?: string;
+  subject: string;
+  description: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+  type: TicketType;
+  assignee: string;
+  dueDate: string;
+  resolvedAt: string | null;
+  resolution: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type TicketInput = Omit<Ticket, "id" | "createdAt" | "updatedAt" | "resolvedAt">;
+
 export type ActivityType = "call" | "email" | "meeting" | "note";
 
 export interface Activity {
@@ -208,6 +231,15 @@ export interface AppApi {
     list: (leadId: string) => Promise<Activity[]>;
     create: (input: ActivityInput) => Promise<Activity>;
     remove: (id: string) => Promise<void>;
+  };
+  tickets: {
+    list: () => Promise<Ticket[]>;
+    get: (id: string) => Promise<Ticket>;
+    create: (input: TicketInput) => Promise<Ticket>;
+    update: (id: string, input: Partial<TicketInput>) => Promise<Ticket>;
+    remove: (id: string) => Promise<void>;
+    listByCustomer: (customerId: string) => Promise<Ticket[]>;
+    listByProject: (projectId: string) => Promise<Ticket[]>;
   };
   campaigns: {
     list: () => Promise<Campaign[]>;

@@ -7,6 +7,7 @@ import type {
   Credentials,
   ProjectInput,
   ActivityInput,
+  TicketInput,
   CampaignInput,
 } from "@/shared/types";
 
@@ -100,6 +101,18 @@ export const api: AppApi = {
     list: (leadId: string) => get(`/activities/${leadId}`),
     create: (input: ActivityInput) => post("/activities", input),
     remove: (id: string) => del<void>(`/activities/${id}`),
+  },
+  tickets: {
+    list: () => get("/tickets"),
+    get: (id: string) => get(`/tickets/${id}`),
+    create: (input: TicketInput) => post("/tickets", input),
+    update: (id: string, input: Partial<TicketInput>) =>
+      patch(`/tickets/${id}`, input),
+    remove: (id: string) => del<void>(`/tickets/${id}`),
+    listByCustomer: (customerId: string) =>
+      get(`/tickets/customer/${customerId}`),
+    listByProject: (projectId: string) =>
+      get(`/tickets/project/${projectId}`),
   },
   campaigns: {
     list: () => get("/campaigns"),

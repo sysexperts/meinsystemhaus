@@ -6,8 +6,9 @@ import { Reports } from "@/pages/Reports";
 import { Campaigns } from "@/pages/Campaigns";
 import { Projects } from "@/pages/Projects";
 import { Customers } from "@/pages/Customers";
+import { Tickets } from "@/pages/Tickets";
 import { Settings } from "@/pages/Settings";
-import { Tickets, MailPage, Invoices } from "@/pages/Placeholders";
+import { MailPage, Invoices } from "@/pages/Placeholders";
 import { Login } from "@/pages/Login";
 import { useAuth } from "@/context/AuthContext";
 

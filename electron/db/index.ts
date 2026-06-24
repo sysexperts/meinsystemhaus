@@ -19,6 +19,8 @@ import type {
   ProjectInput,
   Activity,
   ActivityInput,
+  Ticket,
+  TicketInput,
   Campaign,
   CampaignInput,
 } from "../../src/shared/types";
@@ -149,6 +151,25 @@ function createSchema() {
       outcome TEXT NOT NULL DEFAULT '',
       createdAt TEXT NOT NULL,
       FOREIGN KEY (leadId) REFERENCES leads(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS tickets (
+      id TEXT PRIMARY KEY,
+      customerId TEXT NOT NULL,
+      projectId TEXT,
+      subject TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'offen',
+      priority TEXT NOT NULL DEFAULT 'mittel',
+      type TEXT NOT NULL DEFAULT 'support',
+      assignee TEXT NOT NULL DEFAULT '',
+      dueDate TEXT NOT NULL DEFAULT '',
+      resolvedAt TEXT,
+      resolution TEXT NOT NULL DEFAULT '',
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL,
+      FOREIGN KEY (customerId) REFERENCES customers(id) ON DELETE CASCADE,
+      FOREIGN KEY (projectId) REFERENCES projects(id) ON DELETE SET NULL
     );
   `);
 }
@@ -590,6 +611,102 @@ export function createActivity(input: ActivityInput): Activity {
 
 export function deleteActivity(id: string): void {
   db.prepare("DELETE FROM activities WHERE id = ?").run(id);
+}
+
+// ---------- Tickets ----------
+
+export function listTickets(): Ticket[] {
+  return db
+    .prepare("SELECT * FROM tickets ORDER BY updatedAt DESC")
+    .all() as unknown as Ticket[];
+}
+
+export function getTicket(id: string): Ticket {
+  const ticket = db
+    .prepare("SELECT * FROM tickets WHERE id = ?")
+    .get(id) as unknown as Ticket | undefined;
+  if (!ticket) throw new Error(`Ticket ${id} nicht gefunden`);
+  return ticket;
+}
+
+export function createTicket(input: TicketInput): Ticket {
+  const id = randomUUID();
+  const ts = now();
+  db.prepare(
+    `INSERT INTO tickets
+      (id, customerId, projectId, subject, description, status, priority, type, assignee, dueDate, resolution, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    id,
+    input.customerId,
+    input.projectId ?? null,
+    input.subject,
+    input.description ?? "",
+    input.status ?? "offen",
+    input.priority ?? "mittel",
+    input.type ?? "support",
+    input.assignee ?? "",
+    input.dueDate ?? "",
+    input.resolution ?? "",
+    ts,
+    ts,
+  );
+  return getTicket(id);
+}
+
+export function updateTicket(
+  id: string,
+  input: Partial<TicketInput>,
+): Ticket {
+  const current = getTicket(id);
+  const merged = { ...current, ...input };
+  
+  // Set resolvedAt when status changes to geloest
+  let resolvedAt = current.resolvedAt;
+  if (input.status === "geloest" && current.status !== "geloest") {
+    resolvedAt = now();
+  } else if (input.status && input.status !== "geloest") {
+    resolvedAt = null;
+  }
+  
+  db.prepare(
+    `UPDATE tickets SET
+      customerId = ?, projectId = ?, subject = ?, description = ?, status = ?,
+      priority = ?, type = ?, assignee = ?, dueDate = ?, resolution = ?,
+      resolvedAt = ?, updatedAt = ?
+     WHERE id = ?`,
+  ).run(
+    merged.customerId,
+    merged.projectId ?? null,
+    merged.subject,
+    merged.description,
+    merged.status,
+    merged.priority ?? "mittel",
+    merged.type,
+    merged.assignee ?? "",
+    merged.dueDate,
+    merged.resolution ?? "",
+    resolvedAt,
+    now(),
+    id,
+  );
+  return getTicket(id);
+}
+
+export function deleteTicket(id: string): void {
+  db.prepare("DELETE FROM tickets WHERE id = ?").run(id);
+}
+
+export function listTicketsByCustomer(customerId: string): Ticket[] {
+  return db
+    .prepare("SELECT * FROM tickets WHERE customerId = ? ORDER BY updatedAt DESC")
+    .all(customerId) as unknown as Ticket[];
+}
+
+export function listTicketsByProject(projectId: string): Ticket[] {
+  return db
+    .prepare("SELECT * FROM tickets WHERE projectId = ? ORDER BY updatedAt DESC")
+    .all(projectId) as unknown as Ticket[];
 }
 
 // ---------- Campaigns ----------

@@ -8,6 +8,7 @@ import type {
   Credentials,
   ProjectInput,
   ActivityInput,
+  TicketInput,
   CampaignInput,
 } from "../src/shared/types";
 
@@ -108,6 +109,29 @@ export function createApiRouter(): Router {
   );
   router.delete("/activities/:id", (req: Request, res: Response) =>
     handle(res, () => db.deleteActivity(req.params.id)),
+  );
+
+  // ----- Tickets -----
+  router.get("/tickets", (_req: Request, res: Response) =>
+    handle(res, () => db.listTickets()),
+  );
+  router.get("/tickets/:id", (req: Request, res: Response) =>
+    handle(res, () => db.getTicket(req.params.id)),
+  );
+  router.post("/tickets", (req: Request, res: Response) =>
+    handle(res, () => db.createTicket(req.body as TicketInput)),
+  );
+  router.patch("/tickets/:id", (req: Request, res: Response) =>
+    handle(res, () => db.updateTicket(req.params.id, req.body as Partial<TicketInput>)),
+  );
+  router.delete("/tickets/:id", (req: Request, res: Response) =>
+    handle(res, () => db.deleteTicket(req.params.id)),
+  );
+  router.get("/tickets/customer/:customerId", (req: Request, res: Response) =>
+    handle(res, () => db.listTicketsByCustomer(req.params.customerId)),
+  );
+  router.get("/tickets/project/:projectId", (req: Request, res: Response) =>
+    handle(res, () => db.listTicketsByProject(req.params.projectId)),
   );
 
   // ----- Campaigns -----
