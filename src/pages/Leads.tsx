@@ -32,6 +32,7 @@ import type {
   ActivityInput,
   ActivityType,
   CustomerInput,
+  Campaign,
 } from "@/shared/types";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -90,6 +91,7 @@ const emptyForm: LeadInput = {
   followUpDate: "",
   probability: 0,
   competitor: "",
+  campaignId: "",
   notes: "",
 };
 
@@ -107,6 +109,7 @@ export function Leads() {
   const [filterRating, setFilterRating] = useState<LeadRating | "all">("all");
   const [filterSource, setFilterSource] = useState<LeadSource | "all">("all");
   const [filterOwner, setFilterOwner] = useState<string>("all");
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activities, setActivities] = useState<Record<string, Activity[]>>({});
   const [activityModalOpen, setActivityModalOpen] = useState(false);
   const [activityForm, setActivityForm] = useState<ActivityInput>({
@@ -121,10 +124,18 @@ export function Leads() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const data = await window.api.leads.list();
+    const [data, camps] = await Promise.all([
+      window.api.leads.list(),
+      window.api.campaigns.list(),
+    ]);
     setLeads(data);
+    setCampaigns(camps);
     setLoading(false);
   }, []);
+
+  function campaignName(id: string): string {
+    return campaigns.find((c) => c.id === id)?.name ?? "";
+  }
 
   useEffect(() => {
     load();
@@ -226,6 +237,7 @@ export function Leads() {
       followUpDate: lead.followUpDate,
       probability: lead.probability,
       competitor: lead.competitor,
+      campaignId: lead.campaignId ?? "",
       notes: lead.notes,
     });
     setModalOpen(true);
@@ -552,6 +564,13 @@ export function Leads() {
                           Mitbewerber: {lead.competitor}
                         </p>
                       )}
+                      {lead.campaignId && campaignName(lead.campaignId) && (
+                        <div className="mt-1.5">
+                          <Badge tone="muted">
+                            {campaignName(lead.campaignId)}
+                          </Badge>
+                        </div>
+                      )}
                       <button
                         onClick={() => toggleActivities(lead.id)}
                         className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
@@ -748,13 +767,29 @@ export function Leads() {
               />
             </Field>
           </div>
-          <Field label="Mitbewerber">
-            <Input
-              value={form.competitor}
-              onChange={(e) => setForm({ ...form, competitor: e.target.value })}
-              placeholder="z. B. IT-Service Plus"
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Mitbewerber">
+              <Input
+                value={form.competitor}
+                onChange={(e) => setForm({ ...form, competitor: e.target.value })}
+                placeholder="z. B. IT-Service Plus"
+              />
+            </Field>
+            <Field label="Kampagne">
+              <select
+                value={form.campaignId}
+                onChange={(e) => setForm({ ...form, campaignId: e.target.value })}
+                className="h-10 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">– keine –</option>
+                {campaigns.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
           <Field label="Notizen">
             <textarea
               value={form.notes}

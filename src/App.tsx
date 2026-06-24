@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { Dashboard } from "@/pages/Dashboard";
 import { Leads } from "@/pages/Leads";
 import { Reports } from "@/pages/Reports";
+import { Campaigns } from "@/pages/Campaigns";
 import { Projects } from "@/pages/Projects";
 import { Customers } from "@/pages/Customers";
 import { Settings } from "@/pages/Settings";
@@ -30,6 +31,7 @@ function App() {
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/leads" element={<Leads />} />
+        <Route path="/campaigns" element={<Campaigns />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/projects" element={<Projects />} />
         <Route path="/customers" element={<Customers />} />

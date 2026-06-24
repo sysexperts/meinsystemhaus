@@ -19,6 +19,8 @@ import type {
   ProjectInput,
   Activity,
   ActivityInput,
+  Campaign,
+  CampaignInput,
 } from "../../src/shared/types";
 import { seedLeads, seedCustomers } from "./seed";
 
@@ -29,7 +31,19 @@ export function initDatabase(dbPath: string) {
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA foreign_keys = ON;");
   createSchema();
+  migrate();
   seedIfEmpty();
+}
+
+// Leichte Migrationen fuer bestehende Datenbanken: fehlende Spalten ergaenzen.
+function migrate() {
+  const cols = db
+    .prepare("PRAGMA table_info(leads)")
+    .all() as unknown as { name: string }[];
+  const hasCampaignId = cols.some((c) => c.name === "campaignId");
+  if (!hasCampaignId) {
+    db.exec("ALTER TABLE leads ADD COLUMN campaignId TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 function createSchema() {
@@ -48,6 +62,21 @@ function createSchema() {
       followUpDate TEXT NOT NULL DEFAULT '',
       probability INTEGER NOT NULL DEFAULT 0,
       competitor TEXT NOT NULL DEFAULT '',
+      campaignId TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS campaigns (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      channel TEXT NOT NULL DEFAULT 'sonstige',
+      status TEXT NOT NULL DEFAULT 'geplant',
+      budget REAL NOT NULL DEFAULT 0,
+      startDate TEXT NOT NULL DEFAULT '',
+      endDate TEXT NOT NULL DEFAULT '',
+      goal TEXT NOT NULL DEFAULT '',
       notes TEXT NOT NULL DEFAULT '',
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
@@ -121,6 +150,24 @@ function seedIfEmpty() {
   if (customerCount === 0) {
     for (const customer of seedCustomers) createCustomer(customer);
   }
+
+  const campaignCount = (
+    db.prepare("SELECT COUNT(*) AS c FROM campaigns").get() as { c: number }
+  ).c;
+  if (campaignCount === 0) {
+    const demo: CampaignInput[] = [
+      { name: "Website Relaunch & SEO", channel: "website", status: "aktiv", budget: 4000, startDate: "", endDate: "", goal: "Mehr Inbound-Leads", notes: "" },
+      { name: "IT-Messe Frühjahr", channel: "messe", status: "abgeschlossen", budget: 6500, startDate: "", endDate: "", goal: "Neukundenkontakte", notes: "" },
+      { name: "LinkedIn Outreach", channel: "linkedin", status: "aktiv", budget: 1500, startDate: "", endDate: "", goal: "Entscheider ansprechen", notes: "" },
+    ];
+    const created = demo.map((c) => createCampaign(c));
+    // Bestehende Leads anhand ihrer Quelle einer passenden Kampagne zuordnen.
+    const byChannel = new Map(created.map((c) => [c.channel, c.id]));
+    for (const lead of listLeads()) {
+      const campaignId = byChannel.get(lead.source as CampaignChannel);
+      if (campaignId) updateLead(lead.id, { campaignId });
+    }
+  }
 }
 
 function now() {
@@ -147,8 +194,8 @@ export function createLead(input: LeadInput): Lead {
   const ts = now();
   db.prepare(
     `INSERT INTO leads
-      (id, company, contact, email, phone, value, stage, source, rating, owner, followUpDate, probability, competitor, notes, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, company, contact, email, phone, value, stage, source, rating, owner, followUpDate, probability, competitor, campaignId, notes, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
     input.company,
@@ -163,6 +210,7 @@ export function createLead(input: LeadInput): Lead {
     input.followUpDate ?? "",
     input.probability ?? 0,
     input.competitor ?? "",
+    input.campaignId ?? "",
     input.notes ?? "",
     ts,
     ts,
@@ -177,7 +225,7 @@ export function updateLead(id: string, input: Partial<LeadInput>): Lead {
     `UPDATE leads SET
       company = ?, contact = ?, email = ?, phone = ?, value = ?,
       stage = ?, source = ?, rating = ?, owner = ?, followUpDate = ?,
-      probability = ?, competitor = ?, notes = ?, updatedAt = ?
+      probability = ?, competitor = ?, campaignId = ?, notes = ?, updatedAt = ?
      WHERE id = ?`,
   ).run(
     merged.company,
@@ -192,6 +240,7 @@ export function updateLead(id: string, input: Partial<LeadInput>): Lead {
     merged.followUpDate,
     merged.probability,
     merged.competitor,
+    merged.campaignId ?? "",
     merged.notes,
     now(),
     id,
@@ -486,4 +535,73 @@ export function createActivity(input: ActivityInput): Activity {
 
 export function deleteActivity(id: string): void {
   db.prepare("DELETE FROM activities WHERE id = ?").run(id);
+}
+
+// ---------- Campaigns ----------
+
+export function listCampaigns(): Campaign[] {
+  return db
+    .prepare("SELECT * FROM campaigns ORDER BY updatedAt DESC")
+    .all() as unknown as Campaign[];
+}
+
+function getCampaign(id: string): Campaign {
+  const c = db.prepare("SELECT * FROM campaigns WHERE id = ?").get(id) as
+    unknown as Campaign | undefined;
+  if (!c) throw new Error(`Kampagne ${id} nicht gefunden`);
+  return c;
+}
+
+export function createCampaign(input: CampaignInput): Campaign {
+  const id = randomUUID();
+  const ts = now();
+  db.prepare(
+    `INSERT INTO campaigns
+      (id, name, channel, status, budget, startDate, endDate, goal, notes, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    id,
+    input.name,
+    input.channel ?? "sonstige",
+    input.status ?? "geplant",
+    input.budget ?? 0,
+    input.startDate ?? "",
+    input.endDate ?? "",
+    input.goal ?? "",
+    input.notes ?? "",
+    ts,
+    ts,
+  );
+  return getCampaign(id);
+}
+
+export function updateCampaign(
+  id: string,
+  input: Partial<CampaignInput>,
+): Campaign {
+  const merged = { ...getCampaign(id), ...input };
+  db.prepare(
+    `UPDATE campaigns SET
+      name = ?, channel = ?, status = ?, budget = ?, startDate = ?,
+      endDate = ?, goal = ?, notes = ?, updatedAt = ?
+     WHERE id = ?`,
+  ).run(
+    merged.name,
+    merged.channel,
+    merged.status,
+    merged.budget,
+    merged.startDate,
+    merged.endDate,
+    merged.goal,
+    merged.notes,
+    now(),
+    id,
+  );
+  return getCampaign(id);
+}
+
+export function deleteCampaign(id: string): void {
+  // Verknuepfte Leads loesen (nicht loeschen), dann Kampagne entfernen.
+  db.prepare("UPDATE leads SET campaignId = '' WHERE campaignId = ?").run(id);
+  db.prepare("DELETE FROM campaigns WHERE id = ?").run(id);
 }

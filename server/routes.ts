@@ -8,6 +8,7 @@ import type {
   Credentials,
   ProjectInput,
   ActivityInput,
+  CampaignInput,
 } from "../src/shared/types";
 
 // Kleiner Wrapper: faengt Fehler aus der Datenschicht ab und gibt sie als
@@ -107,6 +108,22 @@ export function createApiRouter(): Router {
   );
   router.delete("/activities/:id", (req: Request, res: Response) =>
     handle(res, () => db.deleteActivity(req.params.id)),
+  );
+
+  // ----- Campaigns -----
+  router.get("/campaigns", (_req: Request, res: Response) =>
+    handle(res, () => db.listCampaigns()),
+  );
+  router.post("/campaigns", (req: Request, res: Response) =>
+    handle(res, () => db.createCampaign(req.body as CampaignInput)),
+  );
+  router.patch("/campaigns/:id", (req: Request, res: Response) =>
+    handle(res, () =>
+      db.updateCampaign(req.params.id, req.body as Partial<CampaignInput>),
+    ),
+  );
+  router.delete("/campaigns/:id", (req: Request, res: Response) =>
+    handle(res, () => db.deleteCampaign(req.params.id)),
   );
 
   return router;

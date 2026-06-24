@@ -1,6 +1,7 @@
 import {
   LayoutDashboard,
   Target,
+  Megaphone,
   BarChart3,
   FolderKanban,
   Users,
@@ -25,6 +26,12 @@ export const navItems: NavItem[] = [
     label: "Kundengewinnung",
     to: "/leads",
     icon: Target,
+    section: "primary",
+  },
+  {
+    label: "Kampagnen",
+    to: "/campaigns",
+    icon: Megaphone,
     section: "primary",
   },
   {

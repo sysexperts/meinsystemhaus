@@ -33,12 +33,42 @@ export interface Lead {
   followUpDate: string;
   probability: number;
   competitor: string;
+  campaignId: string;
   notes: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export type LeadInput = Omit<Lead, "id" | "createdAt" | "updatedAt">;
+
+export type CampaignStatus = "geplant" | "aktiv" | "pausiert" | "abgeschlossen";
+
+export type CampaignChannel =
+  | "website"
+  | "empfehlung"
+  | "messe"
+  | "kaltakquise"
+  | "linkedin"
+  | "google_ads"
+  | "email"
+  | "print"
+  | "sonstige";
+
+export interface Campaign {
+  id: string;
+  name: string;
+  channel: CampaignChannel;
+  status: CampaignStatus;
+  budget: number;
+  startDate: string;
+  endDate: string;
+  goal: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CampaignInput = Omit<Campaign, "id" | "createdAt" | "updatedAt">;
 
 export type CustomerStatus = "aktiv" | "interessent" | "inaktiv";
 
@@ -158,6 +188,12 @@ export interface AppApi {
   activities: {
     list: (leadId: string) => Promise<Activity[]>;
     create: (input: ActivityInput) => Promise<Activity>;
+    remove: (id: string) => Promise<void>;
+  };
+  campaigns: {
+    list: () => Promise<Campaign[]>;
+    create: (input: CampaignInput) => Promise<Campaign>;
+    update: (id: string, input: Partial<CampaignInput>) => Promise<Campaign>;
     remove: (id: string) => Promise<void>;
   };
 }

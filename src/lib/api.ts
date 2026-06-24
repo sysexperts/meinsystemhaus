@@ -7,6 +7,7 @@ import type {
   Credentials,
   ProjectInput,
   ActivityInput,
+  CampaignInput,
 } from "@/shared/types";
 
 // Basis-URL der REST-API. Im Dev-Modus leitet Vite "/api" per Proxy an den
@@ -99,5 +100,12 @@ export const api: AppApi = {
     list: (leadId: string) => get(`/activities/${leadId}`),
     create: (input: ActivityInput) => post("/activities", input),
     remove: (id: string) => del<void>(`/activities/${id}`),
+  },
+  campaigns: {
+    list: () => get("/campaigns"),
+    create: (input: CampaignInput) => post("/campaigns", input),
+    update: (id: string, input: Partial<CampaignInput>) =>
+      patch(`/campaigns/${id}`, input),
+    remove: (id: string) => del<void>(`/campaigns/${id}`),
   },
 };
