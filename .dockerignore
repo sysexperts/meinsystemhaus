@@ -1,0 +1,13 @@
+node_modules
+dist
+dist-electron
+release
+data
+.git
+.gitignore
+*.log
+.vscode
+.idea
+electron/main.ts
+electron/preload.ts
+electron/ipc.ts
